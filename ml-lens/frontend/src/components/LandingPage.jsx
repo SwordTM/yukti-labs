@@ -72,11 +72,6 @@ export default function LandingPage({ onEnter }) {
 
   return (
     <div className="landing-page">
-      {/* Nav — logo only, no sandbox button */}
-      <nav className="landing-nav">
-        <span className="landing-nav-logo">Yukti</span>
-      </nav>
-
       {/* Hero — collapses when loading or done */}
       <section className={`landing-hero ${isLoading || phase === 'done' ? 'landing-hero--compact' : ''}`}>
         <AsteriskSpinner

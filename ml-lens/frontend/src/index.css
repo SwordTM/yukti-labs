@@ -1187,8 +1187,8 @@ input:disabled {
 .landing-input-wrap {
   display: flex;
   gap: 12px;
-  width: 100%;
-  max-width: 580px;
+  width: 460px;
+  max-width: calc(100vw - 48px);
   margin: 0 auto;
   animation: land-fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: 560ms;
