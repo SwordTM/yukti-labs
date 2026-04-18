@@ -4,7 +4,6 @@ import ChatPanel from './components/ChatPanel'
 import Sandbox from './components/Sandbox'
 import LandingPage from './components/LandingPage'
 import { PARAM_DEFAULTS } from './hyperparameters'
-import { buildManifest } from './utils/buildManifest'
 import './index.css'
 
 const API_BASE = 'http://localhost:8000'
@@ -44,7 +43,26 @@ export default function App() {
     setTraversalError(null)
 
     try {
-      const manifest = buildManifest(hyperparams)
+      // Fetch the real "Attention Is All You Need" manifest from the backend
+      const sampleRes = await fetch(`${API_BASE}/api/schema/sample`)
+      if (!sampleRes.ok) throw new Error('Could not load paper manifest')
+      const { manifest } = await sampleRes.json()
+
+      // Overlay user's live hyperparams into the symbol table
+      const p1 = hyperparams['1'], p2 = hyperparams['2']
+      const p5 = hyperparams['5'], p6 = hyperparams['6']
+      const dK = Math.floor(p2.d_model / p5.num_heads)
+      manifest.symbol_table = {
+        ...manifest.symbol_table,
+        B:       'batch size',
+        T:       `sequence length (max ${p1.max_seq_len})`,
+        d_model: `model hidden dimension (${p2.d_model})`,
+        h:       `number of attention heads (${p5.num_heads})`,
+        d_k:     `key/query dimension per head (${dK})`,
+        d_ff:    `feed-forward hidden dimension (${p6.d_ff})`,
+        V:       `vocabulary size (${p2.vocab_size ?? 37000})`,
+      }
+
       const res = await fetch(`${API_BASE}/api/traverse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
