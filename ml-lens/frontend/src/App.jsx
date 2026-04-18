@@ -1,3 +1,12 @@
+import Header from './components/Header'
+import Dashboard from './components/Dashboard'
+import './index.css'
+
 export default function App() {
-  return <h1>ML Lens</h1>
+  return (
+    <div className="app">
+      <Header />
+      <Dashboard />
+    </div>
+  )
 }
