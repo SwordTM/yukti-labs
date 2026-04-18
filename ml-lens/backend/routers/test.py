@@ -242,6 +242,12 @@ async def diff_demo():
                     <button class="copy-btn" onclick="copyNotes()">Copy to Clipboard</button>
                     <div class="implementation-notes" id="implNotes"></div>
                 </div>
+
+                <div class="section">
+                    <h3>Claude Code SKILL.md</h3>
+                    <button class="copy-btn" onclick="downloadSkillMd()">Download SKILL.md</button>
+                    <div class="implementation-notes" id="skillMd" style="max-height: 300px; overflow-y: auto;"></div>
+                </div>
             </div>
         </div>
 
@@ -347,6 +353,12 @@ async def diff_demo():
                 // Implementation notes
                 document.getElementById('implNotes').textContent = diff.implementation_notes;
 
+                // SKILL.md
+                if (data.skill_md) {
+                    window.skillMdContent = data.skill_md;
+                    document.getElementById('skillMd').textContent = data.skill_md;
+                }
+
                 document.getElementById('results').classList.add('show');
             }
 
@@ -355,6 +367,17 @@ async def diff_demo():
                 navigator.clipboard.writeText(text).then(() => {
                     alert('Copied to clipboard!');
                 });
+            }
+
+            function downloadSkillMd() {
+                const text = window.skillMdContent || document.getElementById('skillMd').textContent;
+                const blob = new Blob([text], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'model-architecture-update.md';
+                a.click();
+                URL.revokeObjectURL(url);
             }
         </script>
     </body>

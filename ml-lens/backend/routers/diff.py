@@ -7,6 +7,7 @@ from schema.models import (
     TraversalTrace,
     SchemaDiff,
 )
+from schema.skill_formatter import schema_diff_to_skill_md
 from sandbox.trace_emitter import build_trace_code
 from sandbox.executor import execute_in_sandbox
 from sandbox.result_parser import parse_trace_result
@@ -26,6 +27,7 @@ class DiffResponse(BaseModel):
     baseline_trace: TraversalTrace
     modified_trace: TraversalTrace
     schema_diff: SchemaDiff
+    skill_md: str
 
 
 @router.post("/", response_model=DiffResponse)
@@ -98,8 +100,12 @@ async def compute_diff(req: DiffRequest) -> DiffResponse:
         req.manifest.paper.arxiv_id
     )
 
+    # Generate SKILL.md format
+    skill_md = schema_diff_to_skill_md(schema_diff)
+
     return DiffResponse(
         baseline_trace=baseline_trace,
         modified_trace=modified_trace,
-        schema_diff=schema_diff
+        schema_diff=schema_diff,
+        skill_md=skill_md
     )
