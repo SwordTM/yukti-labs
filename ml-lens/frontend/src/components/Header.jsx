@@ -25,6 +25,13 @@ export default function Header({ currentPage, onNavigate }) {
           >
             Ingestion
           </a>
+          <a
+            href="#"
+            className={`nav-link ${currentPage === 'sandbox' ? 'active' : ''}`}
+            onClick={(e) => handleClick(e, 'sandbox')}
+          >
+            Sandbox
+          </a>
         </nav>
       </div>
     </header>

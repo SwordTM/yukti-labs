@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 import logging
+import os
+import ssl
 import warnings
 from datetime import datetime
 from typing import List, Optional
+
+if os.getenv("DISABLE_SSL_VERIFY", "false").lower() == "true":
+    ssl._create_default_https_context = ssl._create_unverified_context
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
