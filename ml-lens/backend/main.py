@@ -46,7 +46,13 @@ app.add_middleware(
 )
 
 
-# ── Shared models ────────────────────────────────────────────────────────────
+# Register sandbox/diff routers
+try:
+    from routers import diff as diff_router, test as test_router
+    app.include_router(diff_router.router, prefix="/diff", tags=["diff"])
+    app.include_router(test_router.router, prefix="/test", tags=["test"])
+except ImportError:
+    pass
 
 class StatItem(BaseModel):
     label: str
