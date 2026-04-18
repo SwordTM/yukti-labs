@@ -1,18 +1,58 @@
+import { useState, useEffect } from 'react'
 import Card from './Card'
 import StatsCard from './StatsCard'
 
 export default function Dashboard() {
-  const stats = [
-    { label: 'Total Evaluations', value: '24', subtext: 'This month' },
-    { label: 'Pass Rate', value: '92%', subtext: 'Baseline models' },
-    { label: 'Avg Score', value: '8.4/10', subtext: 'All evaluations' }
-  ]
+  const [stats, setStats] = useState([])
+  const [evaluations, setEvaluations] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  const recentEvals = [
-    { id: 1, name: 'GPT-4 vs Claude', status: 'completed', score: 8.7 },
-    { id: 2, name: 'Summarization Task', status: 'in-progress', score: null },
-    { id: 3, name: 'Code Generation', status: 'completed', score: 8.2 }
-  ]
+  const API_BASE = 'http://localhost:8000'
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsRes, evalsRes] = await Promise.all([
+          fetch(`${API_BASE}/api/stats`),
+          fetch(`${API_BASE}/api/evaluations`)
+        ])
+
+        if (!statsRes.ok || !evalsRes.ok) {
+          throw new Error('Failed to fetch data')
+        }
+
+        const statsData = await statsRes.json()
+        const evalsData = await evalsRes.json()
+
+        setStats(statsData)
+        setEvaluations(evalsData)
+        setLoading(false)
+      } catch (err) {
+        setError(err.message)
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="dashboard">
+        <p className="loading">Loading dashboard...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard">
+        <p className="error">Error: {error}</p>
+        <p className="error-hint">Make sure the backend is running on http://localhost:8000</p>
+      </div>
+    )
+  }
 
   return (
     <div className="dashboard">
@@ -30,7 +70,7 @@ export default function Dashboard() {
       <div className="dashboard-section">
         <h3 className="section-title">Recent Evaluations</h3>
         <div className="evals-list">
-          {recentEvals.map(eval => (
+          {evaluations.map(eval => (
             <Card key={eval.id} title={eval.name}>
               <div className="eval-row">
                 <span className={`badge badge-${eval.status}`}>

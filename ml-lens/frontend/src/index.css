@@ -250,3 +250,21 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Loading and Error States */
+.loading, .error {
+  text-align: center;
+  padding: 48px 24px;
+  font-size: 16px;
+  color: #6B6B6B;
+}
+
+.error {
+  color: #DC2626;
+}
+
+.error-hint {
+  font-size: 14px;
+  color: #A0A0A0;
+  margin-top: 8px;
+}
