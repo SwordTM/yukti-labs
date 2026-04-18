@@ -12,49 +12,51 @@ export const PARAM_DEFAULTS = {
 }
 
 // Schema for each param: label, type, min, max, step, unit, options (for select)
+// max is only set where there is a real mathematical constraint.
+// Architectural params (d_model, d_ff, num_heads, etc.) have no hard ceiling.
 export const PARAM_META = {
   '1': [
-    { key: 'max_seq_len', label: 'Max sequence length', type: 'number', min: 64, max: 8192, step: 64, unit: 'tokens' },
+    { key: 'max_seq_len', label: 'Max sequence length', type: 'number', min: 1,    step: 64,   unit: 'tokens' },
   ],
   '2': [
-    { key: 'd_model',    label: 'Model dimension',  type: 'number', min: 64,  max: 2048, step: 64,  unit: 'dims' },
-    { key: 'vocab_size', label: 'Vocabulary size',  type: 'number', min: 1000, max: 200000, step: 1000, unit: 'tokens' },
+    { key: 'd_model',    label: 'Model dimension', type: 'number', min: 1,    step: 64,   unit: 'dims' },
+    { key: 'vocab_size', label: 'Vocabulary size', type: 'number', min: 1,    step: 1000, unit: 'tokens' },
   ],
   '3': [
-    { key: 'max_seq_len', label: 'Max sequence length', type: 'number', min: 64, max: 8192, step: 64, unit: 'tokens' },
-    { key: 'dropout',     label: 'Dropout',             type: 'float',  min: 0,  max: 0.9,  step: 0.05 },
+    { key: 'max_seq_len', label: 'Max sequence length', type: 'number', min: 1,    step: 64,   unit: 'tokens' },
+    { key: 'dropout',     label: 'Dropout',             type: 'float',  min: 0,    max: 1,     step: 0.05 },
   ],
   '4': [
-    { key: 'num_layers', label: 'Number of layers', type: 'number', min: 1, max: 24, step: 1, unit: 'layers' },
-    { key: 'dropout',    label: 'Dropout',           type: 'float',  min: 0, max: 0.9, step: 0.05 },
+    { key: 'num_layers', label: 'Number of layers', type: 'number', min: 1, step: 1, unit: 'layers' },
+    { key: 'dropout',    label: 'Dropout',           type: 'float',  min: 0, max: 1, step: 0.05 },
   ],
   '5': [
-    { key: 'num_heads', label: 'Attention heads', type: 'number', min: 1,  max: 32,   step: 1,    unit: 'heads' },
-    { key: 'd_model',   label: 'Model dimension', type: 'number', min: 64, max: 2048, step: 64,   unit: 'dims' },
-    { key: 'dropout',   label: 'Dropout',          type: 'float',  min: 0,  max: 0.9,  step: 0.05 },
+    { key: 'num_heads', label: 'Attention heads', type: 'number', min: 1, step: 1,  unit: 'heads' },
+    { key: 'd_model',   label: 'Model dimension', type: 'number', min: 1, step: 64, unit: 'dims' },
+    { key: 'dropout',   label: 'Dropout',          type: 'float',  min: 0, max: 1,  step: 0.05 },
   ],
   '6': [
-    { key: 'd_ff',       label: 'FFN hidden size', type: 'number', min: 256, max: 16384, step: 256, unit: 'dims' },
-    { key: 'dropout',    label: 'Dropout',          type: 'float',  min: 0,   max: 0.9,   step: 0.05 },
+    { key: 'd_ff',       label: 'FFN hidden size', type: 'number', min: 1,    step: 256, unit: 'dims' },
+    { key: 'dropout',    label: 'Dropout',          type: 'float',  min: 0,    max: 1,    step: 0.05 },
     { key: 'activation', label: 'Activation',       type: 'select', options: ['relu', 'gelu', 'swish'] },
   ],
   '7': [
-    { key: 'num_layers', label: 'Number of layers', type: 'number', min: 1, max: 24, step: 1, unit: 'layers' },
-    { key: 'dropout',    label: 'Dropout',           type: 'float',  min: 0, max: 0.9, step: 0.05 },
+    { key: 'num_layers', label: 'Number of layers', type: 'number', min: 1, step: 1, unit: 'layers' },
+    { key: 'dropout',    label: 'Dropout',           type: 'float',  min: 0, max: 1, step: 0.05 },
   ],
   '8': [
-    { key: 'num_heads', label: 'Attention heads', type: 'number', min: 1,  max: 32,   step: 1,    unit: 'heads' },
-    { key: 'd_model',   label: 'Model dimension', type: 'number', min: 64, max: 2048, step: 64,   unit: 'dims' },
-    { key: 'dropout',   label: 'Dropout',          type: 'float',  min: 0,  max: 0.9,  step: 0.05 },
+    { key: 'num_heads', label: 'Attention heads', type: 'number', min: 1, step: 1,  unit: 'heads' },
+    { key: 'd_model',   label: 'Model dimension', type: 'number', min: 1, step: 64, unit: 'dims' },
+    { key: 'dropout',   label: 'Dropout',          type: 'float',  min: 0, max: 1,  step: 0.05 },
   ],
   '9': [
-    { key: 'num_heads', label: 'Attention heads', type: 'number', min: 1,  max: 32,   step: 1,    unit: 'heads' },
-    { key: 'd_model',   label: 'Model dimension', type: 'number', min: 64, max: 2048, step: 64,   unit: 'dims' },
-    { key: 'dropout',   label: 'Dropout',          type: 'float',  min: 0,  max: 0.9,  step: 0.05 },
+    { key: 'num_heads', label: 'Attention heads', type: 'number', min: 1, step: 1,  unit: 'heads' },
+    { key: 'd_model',   label: 'Model dimension', type: 'number', min: 1, step: 64, unit: 'dims' },
+    { key: 'dropout',   label: 'Dropout',          type: 'float',  min: 0, max: 1,  step: 0.05 },
   ],
   '10': [
-    { key: 'vocab_size',   label: 'Vocabulary size', type: 'number', min: 1000, max: 200000, step: 1000, unit: 'tokens' },
-    { key: 'temperature',  label: 'Temperature',      type: 'float',  min: 0.01, max: 5.0,    step: 0.05 },
+    { key: 'vocab_size',  label: 'Vocabulary size', type: 'number', min: 1,    step: 1000, unit: 'tokens' },
+    { key: 'temperature', label: 'Temperature',      type: 'float',  min: 0.01, max: 10,    step: 0.05 },
   ],
 }
 

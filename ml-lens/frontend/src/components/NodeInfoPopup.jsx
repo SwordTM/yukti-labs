@@ -128,11 +128,12 @@ function ParamField({ meta, value, defaultValue, onChange }) {
     setFocused(false)
     const num = parseRaw(display, meta.type)
     if (Number.isFinite(num)) {
-      const clamped = Math.min(meta.max, Math.max(meta.min, num))
+      const lo = meta.min ?? -Infinity
+      const hi = meta.max ?? Infinity
+      const clamped = Math.min(hi, Math.max(lo, num))
       onChange(clamped)
       setDisplay(formatDisplay(clamped, meta.type))
     } else {
-      // Revert to last valid value
       setDisplay(formatDisplay(value, meta.type))
     }
   }
