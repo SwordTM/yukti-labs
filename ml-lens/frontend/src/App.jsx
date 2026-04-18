@@ -12,11 +12,14 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState('landing')
 
   // Hyperparams lifted here so Header (Run Traversal) can read them
-  const [hyperparams, setHyperparams] = useState(() =>
-    Object.fromEntries(
-      Object.entries(PARAM_DEFAULTS).map(([id, defaults]) => [id, { ...defaults }])
+  const [hyperparams, setHyperparams] = useState(() => {
+    const defaults = Object.fromEntries(
+      Object.entries(PARAM_DEFAULTS).map(([id, d]) => [id, { ...d }])
     )
-  )
+    // Demo: show effect of increasing Multi-Head Attention heads 8 → 12
+    defaults['5'] = { ...defaults['5'], num_heads: 12 }
+    return defaults
+  })
 
   const handleParamChange = useCallback((nodeId, key, value) => {
     setHyperparams((prev) => ({
