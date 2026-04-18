@@ -1,0 +1,62 @@
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
+
+import arxiv
+
+_ARXIV_ID_RE = re.compile(r"(\d{4}\.\d{4,5})(v\d+)?")
+
+
+@dataclass
+class ArxivPaper:
+    arxiv_id: str
+    title: str
+    authors: list[str]
+    abstract: str
+    published: str
+    pdf_url: str
+    pdf_path: Path
+
+
+class ArxivResolverError(RuntimeError):
+    pass
+
+
+def _extract_arxiv_id(url_or_id: str) -> str:
+    """Accept full arxiv URL, /abs/ path, /pdf/ path, or bare id. Return canonical id (no vN)."""
+    candidate = url_or_id.strip()
+    match = _ARXIV_ID_RE.search(candidate)
+    if not match:
+        raise ArxivResolverError(f"Could not parse arXiv id from: {url_or_id!r}")
+    return match.group(1)
+
+
+def resolve_arxiv(url_or_id: str, download_dir: Optional[Path] = None) -> ArxivPaper:
+    """Resolve an arXiv URL or id to a downloaded PDF plus metadata.
+
+    Uses the `arxiv` package's search-by-id to avoid scraping HTML.
+    """
+    arxiv_id = _extract_arxiv_id(url_or_id)
+    search = arxiv.Search(id_list=[arxiv_id])
+    try:
+        result = next(arxiv.Client().results(search))
+    except StopIteration as exc:
+        raise ArxivResolverError(f"arXiv returned no results for {arxiv_id}") from exc
+
+    download_dir = download_dir or Path("/tmp/ml-lens-pdfs")
+    download_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"{arxiv_id}.pdf"
+    pdf_path = Path(result.download_pdf(dirpath=str(download_dir), filename=filename))
+
+    return ArxivPaper(
+        arxiv_id=arxiv_id,
+        title=result.title.strip(),
+        authors=[a.name for a in result.authors],
+        abstract=result.summary.strip(),
+        published=result.published.isoformat() if result.published else "",
+        pdf_url=result.pdf_url,
+        pdf_path=pdf_path,
+    )
