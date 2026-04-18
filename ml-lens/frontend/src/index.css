@@ -231,6 +231,7 @@ body {
   flex: 1;
   height: 100%;
   overflow: hidden;
+  position: relative;
 }
 
 /* ── Badges ────────────────────────────────────────────── */
@@ -465,6 +466,114 @@ input:disabled {
   font-size: 14px;
   color: #A0A0A0;
   margin-top: 8px;
+}
+
+/* ── Node Info Popup ───────────────────────────────────── */
+.node-popup {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 300px;
+  background: white;
+  border: 1px solid #E5E5E5;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10), 0 2px 6px rgba(0, 0, 0, 0.06);
+  z-index: 10;
+  animation: popup-in 0.15s ease;
+  overflow: hidden;
+}
+
+@keyframes popup-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.node-popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid #F0F0F0;
+  gap: 8px;
+}
+
+.node-popup-title-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.node-popup-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1A1A1A;
+  line-height: 1.2;
+}
+
+.node-popup-type-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.node-popup-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #A0A0A0;
+  font-size: 14px;
+  padding: 2px 4px;
+  line-height: 1;
+  flex-shrink: 0;
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.node-popup-close:hover {
+  color: #1A1A1A;
+  background: #F5F5F5;
+}
+
+.node-popup-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.node-popup-summary {
+  font-size: 13px;
+  color: #3D3D3D;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.node-popup-why {
+  background: #F9FAFB;
+  border-left: 3px solid #0D9488;
+  border-radius: 0 6px 6px 0;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.node-popup-why-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0D9488;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.node-popup-why p {
+  font-size: 13px;
+  color: #4B5563;
+  line-height: 1.55;
+  margin: 0;
 }
 
 /* ── Responsive ────────────────────────────────────────── */

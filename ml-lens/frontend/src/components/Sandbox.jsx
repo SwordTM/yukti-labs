@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useState } from 'react'
 import {
   ReactFlow,
   MiniMap,
@@ -9,6 +9,7 @@ import {
   addEdge,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+import NodeInfoPopup from './NodeInfoPopup'
 
 const mockNodes = [
   {
@@ -94,11 +95,20 @@ const mockEdges = [
 export default function Sandbox() {
   const [nodes, setNodes, onNodesChange] = useNodesState(mockNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(mockEdges)
+  const [selectedNode, setSelectedNode] = useState(null)
 
   const onConnect = useCallback(
     (params) => setEdges((eds) => addEdge(params, eds)),
     [setEdges],
   )
+
+  const onNodeClick = useCallback((_event, node) => {
+    setSelectedNode(node)
+  }, [])
+
+  const onPaneClick = useCallback(() => {
+    setSelectedNode(null)
+  }, [])
 
   return (
     <div className="sandbox-canvas">
@@ -108,6 +118,8 @@ export default function Sandbox() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onNodeClick={onNodeClick}
+        onPaneClick={onPaneClick}
         fitView
       >
         <Controls />
@@ -118,6 +130,8 @@ export default function Sandbox() {
         />
         <Background color="#E5E5E5" gap={16} />
       </ReactFlow>
+
+      <NodeInfoPopup node={selectedNode} onClose={() => setSelectedNode(null)} />
     </div>
   )
 }
