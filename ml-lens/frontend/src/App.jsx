@@ -1,13 +1,17 @@
-import React from 'react'
+import React, { useState } from 'react'
 import Header from './components/Header'
 import Dashboard from './components/Dashboard'
+import Ingestion from './components/Ingestion'
 import './index.css'
 
 export default function App() {
+  const [currentPage, setCurrentPage] = useState('dashboard')
+
   return (
     <div className="app">
-      <Header />
-      <Dashboard />
+      <Header currentPage={currentPage} onNavigate={setCurrentPage} />
+      {currentPage === 'dashboard' && <Dashboard />}
+      {currentPage === 'ingestion' && <Ingestion />}
     </div>
   )
 }
