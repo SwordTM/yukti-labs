@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from datetime import datetime
 from typing import List, Optional
 
@@ -8,6 +9,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+warnings.filterwarnings('ignore', message='.*protected namespace.*')
 
 from ingestion import IngestionCache, ingest_paper, prompt_hash
 from ingestion.arxiv_resolver import ArxivResolverError
