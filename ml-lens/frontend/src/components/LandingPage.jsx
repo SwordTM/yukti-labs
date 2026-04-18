@@ -92,20 +92,25 @@ export default function LandingPage({ onEnter }) {
       {/* Centre stage — input / pipeline / result */}
       <div className="landing-center">
         {phase === 'idle' && (
-          <form className="landing-input-wrap" onSubmit={handleSubmit}>
-            <input
-              ref={inputRef}
-              className="landing-input"
-              type="text"
-              placeholder="arXiv ID or URL — e.g. 1706.03762"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              autoFocus
-            />
-            <button className="btn-primary landing-submit-btn" type="submit" disabled={!input.trim()}>
-              Research paper
+          <>
+            <form className="landing-input-wrap" onSubmit={handleSubmit}>
+              <input
+                ref={inputRef}
+                className="landing-input"
+                type="text"
+                placeholder="arXiv ID or URL — e.g. 1706.03762"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                autoFocus
+              />
+              <button className="btn-primary landing-submit-btn" type="submit" disabled={!input.trim()}>
+                Research paper
+              </button>
+            </form>
+            <button className="landing-sandbox-skip" onClick={onEnter}>
+              or open sandbox directly →
             </button>
-          </form>
+          </>
         )}
 
         {isLoading && (

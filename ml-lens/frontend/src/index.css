@@ -1219,6 +1219,23 @@ input:disabled {
   font-size: 14px;
 }
 
+.landing-sandbox-skip {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Lora', Georgia, serif;
+  font-size: 13px;
+  color: rgba(255,255,255,0.35);
+  margin-top: 14px;
+  transition: color 0.2s ease;
+  animation: land-fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 700ms;
+}
+
+.landing-sandbox-skip:hover {
+  color: rgba(255,255,255,0.75);
+}
+
 /* Error */
 .landing-error {
   display: flex;
