@@ -138,6 +138,13 @@ function ParamField({ meta, value, defaultValue, onChange }) {
     }
   }
 
+  const step = (dir) => {
+    const lo = meta.min ?? -Infinity
+    const hi = meta.max ?? Infinity
+    const next = Math.min(hi, Math.max(lo, value + dir * meta.step))
+    onChange(next)
+  }
+
   return (
     <div className="param-field-wrap">
       <div className="param-input-group">
@@ -150,6 +157,10 @@ function ParamField({ meta, value, defaultValue, onChange }) {
           onChange={handleChange}
           onBlur={handleBlur}
         />
+        <div className="param-steppers">
+          <button className="param-step-btn" onMouseDown={(e) => { e.preventDefault(); step(1) }}>▲</button>
+          <button className="param-step-btn" onMouseDown={(e) => { e.preventDefault(); step(-1) }}>▼</button>
+        </div>
         {meta.unit && <span className="param-unit">{meta.unit}</span>}
       </div>
       {changed && (

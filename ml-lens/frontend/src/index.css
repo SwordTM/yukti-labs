@@ -840,6 +840,39 @@ input:disabled {
   box-shadow: 0 0 0 2px rgba(30, 58, 95, 0.08);
 }
 
+.param-steppers {
+  display: flex;
+  flex-direction: column;
+  margin-left: 2px;
+}
+
+.param-step-btn {
+  background: #EEF3FA;
+  border: 1px solid #D6E4F0;
+  color: #4B5E78;
+  font-size: 7px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+  transition: background 0.1s ease, color 0.1s ease;
+  user-select: none;
+}
+
+.param-step-btn:first-child {
+  border-radius: 3px 3px 0 0;
+  border-bottom: none;
+}
+
+.param-step-btn:last-child {
+  border-radius: 0 0 3px 3px;
+}
+
+.param-step-btn:hover {
+  background: #1E3A5F;
+  color: white;
+  border-color: #1E3A5F;
+}
+
 .param-unit {
   font-family: 'Poppins', Arial, sans-serif;
   font-size: 11px;
