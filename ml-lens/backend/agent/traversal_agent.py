@@ -71,7 +71,7 @@ async def _llm_insight(
         resp = await client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=60,
+            max_tokens=500,
             temperature=0.4,
         )
         text = (resp.choices[0].message.content or "").strip()
