@@ -1,3 +1,5 @@
+import React from 'react'
+
 export default function StatsCard({ label, value, subtext }) {
   return (
     <div className="stats-card">

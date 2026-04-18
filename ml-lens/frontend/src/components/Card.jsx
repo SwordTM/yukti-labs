@@ -1,3 +1,5 @@
+import React from 'react'
+
 export default function Card({ title, children, onClick }) {
   return (
     <div className="card" onClick={onClick}>

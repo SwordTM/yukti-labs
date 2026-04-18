@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import Card from './Card'
 import StatsCard from './StatsCard'
 
@@ -70,14 +70,14 @@ export default function Dashboard() {
       <div className="dashboard-section">
         <h3 className="section-title">Recent Evaluations</h3>
         <div className="evals-list">
-          {evaluations.map(eval => (
-            <Card key={eval.id} title={eval.name}>
+          {evaluations.map(evaluation => (
+            <Card key={evaluation.id} title={evaluation.name}>
               <div className="eval-row">
-                <span className={`badge badge-${eval.status}`}>
-                  {eval.status}
+                <span className={`badge badge-${evaluation.status}`}>
+                  {evaluation.status}
                 </span>
-                {eval.score && (
-                  <span className="eval-score">{eval.score}</span>
+                {evaluation.score && (
+                  <span className="eval-score">{evaluation.score}</span>
                 )}
               </div>
             </Card>

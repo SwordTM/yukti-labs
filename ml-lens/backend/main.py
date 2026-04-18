@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 app = FastAPI(title="ML Lens API")
 
@@ -24,8 +24,8 @@ class Evaluation(BaseModel):
     id: int
     name: str
     status: str
-    score: float = None
-    created_at: str = None
+    score: Optional[float] = None
+    created_at: Optional[str] = None
 
 @app.get("/health")
 async def health():
