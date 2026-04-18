@@ -10,7 +10,8 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import NodeInfoPopup from './NodeInfoPopup'
-import { PARAM_DEFAULTS, isModified } from '../hyperparameters'
+import TraversalPanel from './TraversalPanel'
+import { isModified } from '../hyperparameters'
 
 const nodeBase = { borderRadius: 8, padding: 10, fontFamily: 'Poppins, Arial, sans-serif', fontSize: 13 }
 const navyNode   = { ...nodeBase, background: '#EEF3FA', border: '1px solid #1E3A5F',  fontWeight: 600 }
@@ -47,53 +48,32 @@ const BASE_EDGES = [
   { id: 'e9-10', source: '9', target: '10', style: { stroke: '#7A93B0' } },
 ]
 
-export default function Sandbox() {
+export default function Sandbox({
+  hyperparams,
+  onParamChange,
+  onParamReset,
+  traversalResult,
+  traversalError,
+  onCloseTraversal,
+}) {
   const [nodes, setNodes, onNodesChange] = useNodesState(BASE_NODES)
   const [edges, setEdges, onEdgesChange] = useEdgesState(BASE_EDGES)
   const [selectedNode, setSelectedNode] = useState(null)
-  const [hyperparams, setHyperparams] = useState(() =>
-    Object.fromEntries(
-      Object.entries(PARAM_DEFAULTS).map(([id, defaults]) => [id, { ...defaults }])
-    )
-  )
 
   const onConnect = useCallback(
     (params) => setEdges((eds) => addEdge(params, eds)),
     [setEdges],
   )
 
-  const onNodeClick = useCallback((_event, node) => {
-    setSelectedNode(node)
-  }, [])
+  const onNodeClick = useCallback((_event, node) => setSelectedNode(node), [])
+  const onPaneClick = useCallback(() => setSelectedNode(null), [])
 
-  const onPaneClick = useCallback(() => {
-    setSelectedNode(null)
-  }, [])
-
-  const handleParamChange = useCallback((nodeId, key, value) => {
-    setHyperparams((prev) => ({
-      ...prev,
-      [nodeId]: { ...prev[nodeId], [key]: value },
-    }))
-  }, [])
-
-  const handleParamReset = useCallback((nodeId) => {
-    setHyperparams((prev) => ({
-      ...prev,
-      [nodeId]: { ...PARAM_DEFAULTS[nodeId] },
-    }))
-  }, [])
-
-  // Amber glow on any node whose params differ from defaults
   const derivedNodes = useMemo(() =>
     nodes.map((node) => {
       if (!isModified(node.id, hyperparams[node.id])) return node
       return {
         ...node,
-        style: {
-          ...node.style,
-          boxShadow: '0 0 0 2px #F59E0B, 0 4px 12px rgba(245, 158, 11, 0.25)',
-        },
+        style: { ...node.style, boxShadow: '0 0 0 2px #F59E0B, 0 4px 12px rgba(245,158,11,0.25)' },
       }
     }),
     [nodes, hyperparams]
@@ -113,30 +93,14 @@ export default function Sandbox() {
       >
         <Controls />
         <Background color="#E5E5E5" gap={16} />
-
         <Panel position="bottom-right">
           <div className="sandbox-legend">
-            <div className="legend-row">
-              <span className="legend-node navy" />
-              <span className="legend-label">Encoder</span>
-            </div>
-            <div className="legend-row">
-              <span className="legend-node orange" />
-              <span className="legend-label">Decoder</span>
-            </div>
-            <div className="legend-row">
-              <span className="legend-node plain" />
-              <span className="legend-label">Sub-layer</span>
-            </div>
+            <div className="legend-row"><span className="legend-node navy" /><span className="legend-label">Encoder</span></div>
+            <div className="legend-row"><span className="legend-node orange" /><span className="legend-label">Decoder</span></div>
+            <div className="legend-row"><span className="legend-node plain" /><span className="legend-label">Sub-layer</span></div>
             <div className="legend-divider" />
-            <div className="legend-row">
-              <span className="legend-edge animated" />
-              <span className="legend-label">Data flow</span>
-            </div>
-            <div className="legend-row">
-              <span className="legend-edge dashed" />
-              <span className="legend-label">Cross attention</span>
-            </div>
+            <div className="legend-row"><span className="legend-edge animated" /><span className="legend-label">Data flow</span></div>
+            <div className="legend-row"><span className="legend-edge dashed" /><span className="legend-label">Cross attention</span></div>
           </div>
         </Panel>
       </ReactFlow>
@@ -144,10 +108,18 @@ export default function Sandbox() {
       <NodeInfoPopup
         node={selectedNode}
         params={selectedNode ? hyperparams[selectedNode.id] : null}
-        onParamChange={handleParamChange}
-        onParamReset={handleParamReset}
+        onParamChange={onParamChange}
+        onParamReset={onParamReset}
         onClose={() => setSelectedNode(null)}
       />
+
+      {(traversalResult || traversalError) && (
+        <TraversalPanel
+          result={traversalResult}
+          error={traversalError}
+          onClose={onCloseTraversal}
+        />
+      )}
     </div>
   )
 }
