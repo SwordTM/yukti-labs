@@ -1,4 +1,5 @@
 import React from 'react'
+import { PARAM_META, PARAM_DEFAULTS, isModified, getValidationWarnings } from '../hyperparameters'
 
 const NODE_INFO = {
   '1': {
@@ -34,7 +35,7 @@ const NODE_INFO = {
   '6': {
     title: 'Feed Forward',
     type: 'Sub-layer',
-    summary: 'A two-layer MLP (expand → ReLU → project) applied independently to each token position. The hidden dimension is typically 4× the model dimension (e.g. 2048 for a 512-dim model).',
+    summary: 'A two-layer MLP (expand → activation → project) applied independently to each token position. The hidden dimension is typically 4× the model dimension (e.g. 2048 for a 512-dim model).',
     why: 'Attention mixes information across positions; the FFN processes each position\'s representation in isolation, adding capacity without cross-position interaction.',
   },
   '7': {
@@ -71,13 +72,52 @@ const TYPE_BADGE = {
   Output:      { bg: '#EEF3FA', color: '#1E3A5F', border: '#1E3A5F' },
 }
 
-export default function NodeInfoPopup({ node, onClose }) {
+function ParamField({ meta, value, onChange }) {
+  if (meta.type === 'select') {
+    return (
+      <select
+        className="param-select"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {meta.options.map((opt) => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+      </select>
+    )
+  }
+
+  return (
+    <div className="param-input-group">
+      <input
+        className="param-input"
+        type="number"
+        min={meta.min}
+        max={meta.max}
+        step={meta.step}
+        value={value}
+        onChange={(e) => {
+          const parsed = meta.type === 'float'
+            ? parseFloat(e.target.value)
+            : parseInt(e.target.value, 10)
+          if (!isNaN(parsed)) onChange(parsed)
+        }}
+      />
+      {meta.unit && <span className="param-unit">{meta.unit}</span>}
+    </div>
+  )
+}
+
+export default function NodeInfoPopup({ node, params, onParamChange, onParamReset, onClose }) {
   if (!node) return null
 
   const info = NODE_INFO[node.id]
+  const paramMeta = PARAM_META[node.id] || []
   if (!info) return null
 
   const badge = TYPE_BADGE[info.type] || TYPE_BADGE['Sub-layer']
+  const modified = isModified(node.id, params)
+  const warnings = getValidationWarnings(node.id, params)
 
   return (
     <div className="node-popup">
@@ -96,10 +136,48 @@ export default function NodeInfoPopup({ node, onClose }) {
 
       <div className="node-popup-body">
         <p className="node-popup-summary">{info.summary}</p>
+
         <div className="node-popup-why">
           <span className="node-popup-why-label">Why it matters</span>
           <p>{info.why}</p>
         </div>
+
+        {paramMeta.length > 0 && (
+          <div className="node-popup-params">
+            <div className="params-header">
+              <span className="params-title">Parameters</span>
+              {modified && (
+                <button
+                  className="params-reset-btn"
+                  onClick={() => onParamReset(node.id)}
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+
+            <div className="params-grid">
+              {paramMeta.map((meta) => (
+                <React.Fragment key={meta.key}>
+                  <label className="param-label">{meta.label}</label>
+                  <ParamField
+                    meta={meta}
+                    value={params?.[meta.key] ?? PARAM_DEFAULTS[node.id][meta.key]}
+                    onChange={(val) => onParamChange(node.id, meta.key, val)}
+                  />
+                </React.Fragment>
+              ))}
+            </div>
+
+            {warnings.length > 0 && (
+              <div className="params-warnings">
+                {warnings.map((w, i) => (
+                  <p key={i} className="param-warning">⚠ {w}</p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
