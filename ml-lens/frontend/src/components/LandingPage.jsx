@@ -43,10 +43,16 @@ export default function LandingPage({ onEnter }) {
 
       const data = await res.json()
       setPipelineDone(true)
+
+      // Show result card briefly, then auto-navigate to sandbox
       setTimeout(() => {
         setResult(data)
         setPhase('done')
       }, 900)
+
+      setTimeout(() => {
+        onEnter()
+      }, 2800)
     } catch (err) {
       setError(err.message)
       setPhase('error')
@@ -66,10 +72,9 @@ export default function LandingPage({ onEnter }) {
 
   return (
     <div className="landing-page">
-      {/* Nav */}
+      {/* Nav — logo only, no sandbox button */}
       <nav className="landing-nav">
         <span className="landing-nav-logo">Yukti</span>
-        <button className="btn-ghost" onClick={onEnter}>Open Sandbox →</button>
       </nav>
 
       {/* Hero — collapses when loading or done */}
@@ -140,10 +145,7 @@ export default function LandingPage({ onEnter }) {
                 <span key={c.id} className="landing-component-chip">{c.name}</span>
               ))}
             </div>
-            <div className="landing-result-actions">
-              <button className="btn-primary" onClick={onEnter}>Open in Sandbox →</button>
-              <button className="btn-ghost" onClick={handleReset}>Research another</button>
-            </div>
+            <p className="landing-result-entering">Opening sandbox…</p>
           </div>
         )}
       </div>

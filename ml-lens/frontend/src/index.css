@@ -1412,22 +1412,18 @@ input:disabled {
   border-radius: 20px;
 }
 
-.landing-result-actions {
-  display: flex;
-  gap: 10px;
-  padding-top: 4px;
+.landing-result-entering {
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.3px;
+  animation: landing-blink 1s ease-in-out infinite;
 }
 
-.landing-result-actions .btn-ghost {
-  border-color: rgba(255,255,255,0.18);
-  color: rgba(255,255,255,0.55);
-  font-size: 13px;
-}
-
-.landing-result-actions .btn-ghost:hover {
-  border-color: rgba(255,255,255,0.45);
-  color: white;
-  background: rgba(255,255,255,0.05);
+@keyframes landing-blink {
+  0%, 100% { opacity: 0.35; }
+  50%       { opacity: 0.7; }
 }
 
 /* ── Responsive ────────────────────────────────────────── */
