@@ -13,10 +13,10 @@ export default function Header({ currentPage, onNavigate }) {
         <nav className="nav">
           <a
             href="#"
-            className={`nav-link ${currentPage === 'dashboard' ? 'active' : ''}`}
-            onClick={(e) => handleClick(e, 'dashboard')}
+            className={`nav-link ${currentPage === 'sandbox' ? 'active' : ''}`}
+            onClick={(e) => handleClick(e, 'sandbox')}
           >
-            Dashboard
+            Sandbox
           </a>
           <a
             href="#"
@@ -24,13 +24,6 @@ export default function Header({ currentPage, onNavigate }) {
             onClick={(e) => handleClick(e, 'ingestion')}
           >
             Ingestion
-          </a>
-          <a
-            href="#"
-            className={`nav-link ${currentPage === 'sandbox' ? 'active' : ''}`}
-            onClick={(e) => handleClick(e, 'sandbox')}
-          >
-            Sandbox
           </a>
         </nav>
       </div>
