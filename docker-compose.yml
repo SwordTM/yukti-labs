@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./ml-lens/backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - E2B_API_KEY=${E2B_API_KEY}
+      - LANGFUSE_KEY=${LANGFUSE_KEY}
+    volumes:
+      - ./ml-lens/backend:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  e2b-sandbox:
+    image: ghcr.io/e2b-dev/sandbox:latest
+    ports:
+      - "4242:4242"
+
+volumes:
+  backend:
