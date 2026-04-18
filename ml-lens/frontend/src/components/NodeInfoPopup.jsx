@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { PARAM_META, PARAM_DEFAULTS, isModified, getValidationWarnings } from '../hyperparameters'
 
 const NODE_INFO = {
@@ -72,8 +72,25 @@ const TYPE_BADGE = {
   Output:      { bg: '#EEF3FA', color: '#1E3A5F', border: '#1E3A5F' },
 }
 
+function formatDisplay(num, type) {
+  if (type === 'float') return num.toString()
+  return Number.isFinite(num) ? num.toLocaleString('en-US') : ''
+}
+
+function parseRaw(str, type) {
+  const cleaned = str.replace(/,/g, '').trim()
+  return type === 'float' ? parseFloat(cleaned) : parseInt(cleaned, 10)
+}
+
 function ParamField({ meta, value, defaultValue, onChange }) {
   const changed = value !== defaultValue
+  const [display, setDisplay] = useState(() => formatDisplay(value, meta.type))
+  const [focused, setFocused] = useState(false)
+
+  // Sync display when value changes externally (e.g. Reset)
+  useEffect(() => {
+    if (!focused) setDisplay(formatDisplay(value, meta.type))
+  }, [value, focused])
 
   if (meta.type === 'select') {
     return (
@@ -94,27 +111,50 @@ function ParamField({ meta, value, defaultValue, onChange }) {
     )
   }
 
+  const handleFocus = (e) => {
+    setFocused(true)
+    // Show raw number while editing so typing is uninterrupted
+    setDisplay(value.toString())
+    e.target.select()
+  }
+
+  const handleChange = (e) => {
+    // Allow digits, commas, and decimal points while typing
+    const raw = e.target.value.replace(/[^0-9.,]/g, '')
+    setDisplay(raw)
+  }
+
+  const handleBlur = () => {
+    setFocused(false)
+    const num = parseRaw(display, meta.type)
+    if (Number.isFinite(num)) {
+      const clamped = Math.min(meta.max, Math.max(meta.min, num))
+      onChange(clamped)
+      setDisplay(formatDisplay(clamped, meta.type))
+    } else {
+      // Revert to last valid value
+      setDisplay(formatDisplay(value, meta.type))
+    }
+  }
+
   return (
     <div className="param-field-wrap">
       <div className="param-input-group">
         <input
           className={`param-input ${changed ? 'param-changed' : ''}`}
-          type="number"
-          min={meta.min}
-          max={meta.max}
-          step={meta.step}
-          value={value}
-          onChange={(e) => {
-            const parsed = meta.type === 'float'
-              ? parseFloat(e.target.value)
-              : parseInt(e.target.value, 10)
-            if (!isNaN(parsed)) onChange(parsed)
-          }}
+          type="text"
+          inputMode={meta.type === 'float' ? 'decimal' : 'numeric'}
+          value={display}
+          onFocus={handleFocus}
+          onChange={handleChange}
+          onBlur={handleBlur}
         />
         {meta.unit && <span className="param-unit">{meta.unit}</span>}
       </div>
       {changed && (
-        <span className="param-default-hint">default: {defaultValue}</span>
+        <span className="param-default-hint">
+          default: {formatDisplay(defaultValue, meta.type)}
+        </span>
       )}
     </div>
   )
