@@ -2,17 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import LoadingBar from './LoadingBar'
 import LoadingDots from './LoadingDots'
 
-const STUB_RESPONSES = [
-  "That's a great question. The attention mechanism allows each token to weigh all other tokens — this is why the model can capture long-range dependencies that RNNs struggle with.",
-  "The softmax in the attention formula normalises scores into a probability distribution, so each token's output is a weighted sum of all value vectors.",
-  "Feed-forward layers apply the same transformation independently to each position — think of them as per-token MLPs that add non-linearity after attention.",
-  "Layer normalisation stabilises training by re-centering activations before they pass into the next sub-layer.",
-  "I'd need a bit more context to answer precisely — could you point to which component in the diagram you're referring to?",
-]
-
-function stubReply() {
-  return STUB_RESPONSES[Math.floor(Math.random() * STUB_RESPONSES.length)]
-}
+const API_BASE = 'http://localhost:8000'
 
 export default function ChatPanel() {
   const [messages, setMessages] = useState([
@@ -24,27 +14,51 @@ export default function ChatPanel() {
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
   const bottomRef = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [messages, loading])
 
-  const send = () => {
+  const send = async () => {
     const text = input.trim()
     if (!text || loading) return
 
     const userMsg = { id: Date.now(), role: 'user', content: text }
-    setMessages((prev) => [...prev, userMsg])
+    const nextMessages = [...messages, userMsg]
+
+    setMessages(nextMessages)
     setInput('')
     setLoading(true)
+    setError(null)
 
-    // stub — will be replaced by POST /api/chat
-    setTimeout(() => {
-      const reply = { id: Date.now() + 1, role: 'assistant', content: stubReply() }
-      setMessages((prev) => [...prev, reply])
+    try {
+      const res = await fetch(`${API_BASE}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: nextMessages
+            .filter((m) => m.role === 'user' || m.role === 'assistant')
+            .map(({ role, content }) => ({ role, content })),
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Request failed' }))
+        throw new Error(err.detail || 'Request failed')
+      }
+
+      const data = await res.json()
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now() + 1, role: 'assistant', content: data.content },
+      ])
+    } catch (err) {
+      setError(err.message)
+    } finally {
       setLoading(false)
-    }, 800)
+    }
   }
 
   const handleKey = (e) => {
@@ -56,7 +70,7 @@ export default function ChatPanel() {
 
   return (
     <aside className="chat-panel">
-      <LoadingBar loading={loading} />
+      <LoadingBar loading={loading} label="Thinking…" />
 
       <div className="chat-panel-header">
         <span className="chat-panel-title">Model Chat</span>
@@ -74,6 +88,11 @@ export default function ChatPanel() {
             <LoadingDots />
           </div>
         )}
+        {error && (
+          <div className="chat-bubble assistant chat-bubble-error">
+            <p>Something went wrong: {error}</p>
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
@@ -87,7 +106,11 @@ export default function ChatPanel() {
           onKeyDown={handleKey}
           disabled={loading}
         />
-        <button className="btn-primary chat-send-btn" onClick={send} disabled={loading || !input.trim()}>
+        <button
+          className="btn-primary chat-send-btn"
+          onClick={send}
+          disabled={loading || !input.trim()}
+        >
           Send
         </button>
       </div>

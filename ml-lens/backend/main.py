@@ -5,11 +5,12 @@ import os
 import ssl
 import warnings
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 if os.getenv("DISABLE_SSL_VERIFY", "false").lower() == "true":
     ssl._create_default_https_context = ssl._create_unverified_context
 
+import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -68,6 +69,27 @@ class IngestResponse(BaseModel):
         description="True if the manifest came from on-disk cache (no Claude call this request)."
     )
 
+
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage]
+
+
+class ChatResponse(BaseModel):
+    content: str
+
+
+CHAT_SYSTEM_PROMPT = """You are an ML model explainability assistant embedded in Yukti, \
+an interactive ML analysis platform. The user is exploring a sandbox that visualises \
+ML model architectures — currently a Transformer (Attention Is All You Need). \
+Help them understand how components work, why the model behaves the way it does, \
+and the intuition behind architectural decisions. Be clear and concise. \
+Use plain language and analogies where helpful. Avoid unnecessary jargon."""
+
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
@@ -94,6 +116,29 @@ async def get_evaluations():
 @app.post("/api/evaluations", response_model=Evaluation)
 async def create_evaluation(eval: Evaluation):
     return {"id": 4, **eval.dict(), "created_at": datetime.now().isoformat()}
+
+
+@app.post("/api/chat", response_model=ChatResponse)
+async def chat(req: ChatRequest) -> ChatResponse:
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="OpenRouter API key not configured")
+
+    messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT}]
+    messages += [{"role": m.role, "content": m.content} for m in req.messages]
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={"model": "meta-llama/llama-3.1-8b-instruct:free", "messages": messages},
+        )
+
+    if resp.status_code != 200:
+        logger.error("OpenRouter error %s: %s", resp.status_code, resp.text)
+        raise HTTPException(status_code=502, detail="LLM request failed")
+
+    return ChatResponse(content=resp.json()["choices"][0]["message"]["content"])
 
 
 def _was_cache_hit(url_or_id: str) -> bool:

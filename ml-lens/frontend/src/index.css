@@ -198,6 +198,11 @@ h1, h2, h3, h4, h5, h6 {
   border-bottom-left-radius: 2px;
 }
 
+.chat-bubble-error {
+  background: #FEE2E2 !important;
+  color: #DC2626 !important;
+}
+
 .chat-typing {
   color: #7A93B0;
   font-style: italic;
