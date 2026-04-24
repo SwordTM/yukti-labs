@@ -1,8 +1,9 @@
 from __future__ import annotations
-
 import logging
 import os
 import ssl
+import time
+import json
 import warnings
 from datetime import datetime
 from typing import List, Optional, Literal
@@ -16,11 +17,12 @@ if os.getenv("DISABLE_SSL_VERIFY", "false").lower() == "true":
 import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from openai import OpenAI
 
 warnings.filterwarnings('ignore', message='.*protected namespace.*')
-
-load_dotenv()
 
 from schema.validator import manifest_json_schema
 from schema.lock import lock_manifest, LockedManifest
@@ -34,6 +36,10 @@ from schema.models import (
 from agent import run_traversal, TraversalTrace
 from ingestion import ingest_paper, ComponentExtractorError
 
+# Configuration
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+DEFAULT_MODEL = os.getenv("OPENROUTER_MODEL", "minimax/minimax-m2.7")
+
 logger = logging.getLogger("ml_lens.backend")
 logging.basicConfig(level=logging.INFO)
 
@@ -41,26 +47,17 @@ app = FastAPI(title="Yukti API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-# Register sandbox/diff routers
-try:
-    from routers import diff as diff_router, test as test_router
-    app.include_router(diff_router.router, prefix="/diff", tags=["diff"])
-    app.include_router(test_router.router, prefix="/test", tags=["test"])
-except ImportError:
-    pass
-
+# ── Models ──────────────────────────────────────────────────────────────────
 class StatItem(BaseModel):
     label: str
     value: str
     subtext: str
-
 
 class Evaluation(BaseModel):
     id: int
@@ -69,76 +66,15 @@ class Evaluation(BaseModel):
     score: Optional[float] = None
     created_at: Optional[str] = None
 
+class IngestRequest(BaseModel):
+    url_or_id: str
+    force_refresh: bool = False
 
-# ── Chat models ──────────────────────────────────────────────────────────────
-
-class ChatMessage(BaseModel):
-    role: Literal["user", "assistant"]
-    content: str
-
-
-class ChatRequest(BaseModel):
-    messages: List[ChatMessage]
-
-
-class ChatResponse(BaseModel):
-    content: str
-
-
-_PAPER_CONTEXT = """
-## Active paper: Attention Is All You Need
-**Authors:** Vaswani, Shazeer, Parmar, Uszkoreit, Jones, Gomez, Kaiser, Polosukhin (2017)
-**arXiv:** 1706.03762
-
-### Default hyperparameters (base model)
-| Parameter | Value |
-|-----------|-------|
-| d_model | 512 |
-| num_heads | 8 |
-| d_k = d_v | 64 |
-| d_ff | 2048 |
-| num_layers (enc + dec) | 6 + 6 |
-| dropout | 0.1 |
-| max_seq_len | 512 |
-| vocab_size (WMT EN-DE) | ~37 000 |
-| Activation | ReLU |
-
-### Key component notes from the paper
-- **Input Embedding:** Weight-tied with pre-softmax linear. Scaled by sqrt(d_model).
-- **Positional Encoding:** Fixed sinusoidal (not learned). Generalises to unseen lengths.
-- **Multi-Head Attention:** h=8 heads, d_k=64. Scaled dot-product attention (divide by sqrt(d_k)).
-- **Masked Attention:** Causal mask sets future positions to -inf before softmax.
-- **Feed-Forward:** FFN(x) = max(0, xW1+b1)W2+b2. d_ff=2048 = 4x d_model.
-- **Residual + LayerNorm:** Every sub-layer: LayerNorm(x + Sublayer(x)).
-- **Linear + Softmax:** Weight-tied projection to vocab_size logits.
-
-### Training
-- Adam: b1=0.9, b2=0.98, eps=1e-9. Warmup 4000 steps then inverse sqrt decay.
-- Label smoothing: 0.1
-"""
-
-CHAT_SYSTEM_PROMPT = (
-    "You are an ML model explainability assistant embedded in Yukti, "
-    "an interactive ML analysis platform. The user is exploring a sandbox that visualises "
-    "the architecture from the active paper below. Answer questions grounded in what the "
-    "paper actually says — cite specific values (e.g. d_model=512, h=8) when relevant. "
-    "Keep responses focused and moderately detailed: cover the key point and one supporting "
-    "reason or example, then stop. Aim for 3-5 sentences or a short list — never more than "
-    "two short paragraphs. Use plain language and analogies where helpful. "
-    "Format with markdown (bold key terms, short bullet lists where appropriate) but avoid "
-    "large walls of text or exhaustive breakdowns.\n\n"
-    + _PAPER_CONTEXT
-)
-
-
-# ── Health ───────────────────────────────────────────────────────────────────
+# ── Endpoints ───────────────────────────────────────────────────────────────
 
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
-
-
-# ── Stub dashboard endpoints ─────────────────────────────────────────────────
 
 @app.get("/api/stats", response_model=List[StatItem])
 async def get_stats():
@@ -148,87 +84,69 @@ async def get_stats():
         {"label": "Avg Score", "value": "8.4/10", "subtext": "All evaluations"},
     ]
 
-
-@app.get("/api/evaluations", response_model=List[Evaluation])
-async def get_evaluations():
-    return [
-        {"id": 1, "name": "GPT-4 vs Claude", "status": "completed", "score": 8.7, "created_at": "2024-01-15"},
-        {"id": 2, "name": "Summarization Task", "status": "in-progress", "score": None, "created_at": "2024-01-16"},
-        {"id": 3, "name": "Code Generation", "status": "completed", "score": 8.2, "created_at": "2024-01-14"},
-    ]
-
-
-@app.post("/api/evaluations", response_model=Evaluation)
-async def create_evaluation(evaluation: Evaluation):
-    return {"id": 4, **evaluation.model_dump(), "created_at": datetime.now().isoformat()}
-
-
-# ── Chat endpoint (OpenRouter) ───────────────────────────────────────────────
-
-@app.post("/api/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest) -> ChatResponse:
+@app.post("/api/chat")
+async def chat(payload: dict):
+    messages = payload.get("messages", [])
+    manifest = payload.get("manifest")
+    
     api_key = os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="OpenRouter API key not configured")
+    if not api_key or "your_" in api_key:
+        return {"content": "OpenRouter API key is missing. Please set it in the .env file.", "action": None}
+        
+    client = OpenAI(
+        base_url=OPENROUTER_BASE_URL,
+        api_key=api_key,
+    )
 
-    messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT}]
-    messages += [{"role": m.role, "content": m.content} for m in req.messages]
+    system_prompt = f"""You are the ML Lens Architect. You help users understand and experiment with ML models.
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}"},
-            json={"model": "google/gemma-3-27b-it", "messages": messages},
+## Your two modes:
+1. INFORMATIONAL: If the user asks a question about ML concepts (e.g. "What is an encoder stack?"), explain it clearly. Do NOT propose an architecture change.
+2. OPERATIONAL: If the user explicitly asks to modify, duplicate, or add something to the sandbox, propose an action.
+
+## Context:
+Current model architecture: {json.dumps(manifest.get('components') if manifest else [], indent=2)}
+
+## Proposing Actions:
+If (and ONLY if) an operational change is requested, include an "action" field in your response.
+Action Schema: {{ "type": "duplicate_component", "payload": {{ "sourceId": string, "newId": string, "name": string, "depends_on": string[] }} }}
+
+Return your response as a JSON object with:
+- "content": Your markdown response.
+- "action": null OR the action object.
+"""
+
+    try:
+        completion = client.chat.completions.create(
+            model=DEFAULT_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                *messages
+            ],
+            response_format={ "type": "json_object" }
         )
-
-    if resp.status_code != 200:
-        logger.error("OpenRouter error %s: %s", resp.status_code, resp.text)
-        raise HTTPException(status_code=502, detail="LLM request failed")
-
-    return ChatResponse(content=resp.json()["choices"][0]["message"]["content"])
-
-
-# ── Ingestion endpoint (lightweight PyMuPDF pipeline) ────────────────────────
-
-class IngestRequest(BaseModel):
-    url_or_id: str
-    force_refresh: bool = False
-
+        res_data = json.loads(completion.choices[0].message.content)
+        return res_data
+    except Exception as e:
+        logging.error(f"Chat error: {e}")
+        return {"content": f"Error: {str(e)}", "action": None}
 
 @app.post("/api/ingest", response_model=LockedManifest)
 async def ingest(req: IngestRequest):
-    """Download + parse an arXiv paper and extract its ComponentManifest."""
     try:
         manifest = ingest_paper(req.url_or_id, force_refresh=req.force_refresh)
         return lock_manifest(manifest)
     except ComponentExtractorError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Ingestion error: {exc}")
 
-
-# ── Traversal Agent endpoint ─────────────────────────────────────────────────
-
 @app.post("/api/traverse", response_model=TraversalTrace)
 async def traverse_manifest(manifest: ComponentManifest):
-    """Run the traversal agent over a ComponentManifest and return the trace."""
     try:
         return await run_traversal(manifest)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Traversal agent error: {exc}")
-
-
-# ── Schema Contract endpoints ────────────────────────────────────────────────
-
-@app.get("/api/schema")
-async def get_schema():
-    """Return the JSON Schema for ComponentManifest."""
-    return manifest_json_schema()
-
 
 @app.get("/api/schema/sample", response_model=LockedManifest)
 async def get_sample_manifest():
@@ -293,3 +211,18 @@ async def get_sample_manifest():
         },
     )
     return lock_manifest(manifest)
+
+# ── Serve Frontend ──────────────────────────────────────────────────────────
+if os.path.exists("./static"):
+    app.mount("/assets", StaticFiles(directory="./static/assets"), name="static")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        file_path = os.path.join("./static", full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse("./static/index.html")
+else:
+    @app.get("/")
+    async def root_fallback():
+        return {"message": "Backend is running. Frontend static files not found (expected in ./static)."}
