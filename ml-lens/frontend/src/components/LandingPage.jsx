@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react'
 import PipelineProgress from './PipelineProgress'
 import AsteriskSpinner from './AsteriskSpinner'
 
-const API_BASE = 'http://localhost:8000'
+const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
 const ARXIV_PATTERN = /(?:arxiv\.org\/(?:abs|pdf)\/|^)([\d]{4}\.[\d]{4,5}(?:v\d+)?|[a-z\-]+\/\d{7})$/i
 

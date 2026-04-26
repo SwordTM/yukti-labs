@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8000'
+const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
 const post = (path, body) =>
   fetch(API_BASE + path, {

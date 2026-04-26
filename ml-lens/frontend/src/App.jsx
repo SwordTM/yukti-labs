@@ -6,7 +6,7 @@ import LandingPage from './components/LandingPage'
 import { PARAM_DEFAULTS } from './hyperparameters'
 import './index.css'
 
-const API_BASE = 'http://localhost:8000'
+const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('landing')

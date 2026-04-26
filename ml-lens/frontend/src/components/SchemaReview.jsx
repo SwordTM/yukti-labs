@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import SchemaContractCard from './SchemaContractCard'
 import ArchitectureFlow from './ArchitectureFlow'
 
-const API_BASE = 'http://localhost:8000'
+const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
 export default function SchemaReview() {
   const [locked, setLocked] = useState(null)
