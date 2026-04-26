@@ -308,6 +308,11 @@ def extract_manifest(
             comp["kind"] = _normalize_kind(comp["kind"])
         if "quote" in comp and isinstance(comp["quote"], str):
             comp["quote"] = {"text": comp["quote"]}
+        # Coerce all hyperparameter values to strings (schema requires dict[str, str])
+        if "hyperparameters" in comp and isinstance(comp["hyperparameters"], dict):
+            comp["hyperparameters"] = {
+                k: str(v) for k, v in comp["hyperparameters"].items()
+            }
     for inv in (raw_json.get("invariants") or []):
         if not isinstance(inv, dict): continue
         # generate id from name if missing
