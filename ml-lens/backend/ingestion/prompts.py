@@ -30,9 +30,9 @@ EXTRACTION_SYSTEM_PROMPT = f"""You are an expert ML research engineer extracting
 
 ## Granularity Rules
 
-- Break down complex layers into their constituent mathematical blocks.
-- Example: Don't just extract "Encoder Layer". Extract "Multi-Head Attention", "Add & Norm", "Feed-Forward", and "Add & Norm (Final)".
-- Capture sub-components like "Scaled Dot-Product Attention" if they have specific equations or tensor shapes mentioned.
+- Break down complex layers into their constituent mathematical blocks (e.g., Multi-Head Attention, FFN).
+- **DO NOT unroll repetitive stacks**: If a paper says "N=6 layers", do NOT create 6 identical components. Instead, create ONE representative component (e.g., "Encoder Block") and specify `num_layers: 6` in its hyperparameters.
+- Capture sub-components like "Scaled Dot-Product Attention" if they have specific equations.
 
 ## depends_on — DATA FLOW GRAPH (CRITICAL)
 

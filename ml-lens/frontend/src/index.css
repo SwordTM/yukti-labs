@@ -17,6 +17,27 @@ body {
   overflow-x: hidden;
 }
 
+/* Premium Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(30, 58, 95, 0.2);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(30, 58, 95, 0.4);
+  background-clip: content-box;
+}
+
 /* Landing page scrolls; app shell does not */
 body.app-mode {
   height: 100vh;
@@ -28,9 +49,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 #root {
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 /* ── App shell ─────────────────────────────────────────── */
@@ -1366,7 +1391,8 @@ input:disabled {
   justify-content: center;
   background: #0F1C2E;
   color: white;
-  padding: 40px 20px;
+  padding: 80px 20px; /* Increased vertical padding for breathing room */
+  overflow-y: auto;
 }
 
 /* Nav */
