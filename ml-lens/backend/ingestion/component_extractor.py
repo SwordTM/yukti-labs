@@ -18,34 +18,22 @@ DEFAULT_MODEL = os.getenv("OPENROUTER_MODEL", "minimax/minimax-m2.7")
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 MAX_TEXT_CHARS = 80_000
 
-# Kind-based topological order used to infer missing depends_on.
-# Earlier kinds naturally precede later ones in a transformer data flow.
-_KIND_ORDER = [
-    "input_embedding",
-    "positional_encoding",
-    "masking",
-    "linear_projection",
-    "attention",
-    "multi_head_attention",
-    "softmax",
-    "residual",
-    "layernorm",
-    "rmsnorm",
-    "feedforward",
-    "output_head",
-    "other",
+# Kind-based tiers for topological inference.
+# Components in the same tier can be processed in parallel.
+_TIER_ORDER = [
+    {"input_embedding", "positional_encoding"},
+    {"masking"},
+    {"linear_projection", "attention", "multi_head_attention"},
+    {"softmax"},
+    {"residual"},
+    {"layernorm", "rmsnorm"},
+    {"feedforward"},
+    {"output_head"},
 ]
 
 
 def _infer_depends_on(raw_json: dict) -> dict:
-    """Best-effort pass to fill in missing depends_on links.
-
-    Strategy (applied in order, stopping when enough connections are made):
-    1. tensor_contracts: if component A's output shapes match component B's
-       input shapes (same keys), A -> B.
-    2. Kind-based ordering: assign each component a tier from _KIND_ORDER
-       and connect sequential tiers when no connection exists.
-    """
+    """Best-effort pass to fill in missing depends_on links."""
     comps = raw_json.get("components") or []
     if not comps:
         return raw_json
@@ -53,65 +41,72 @@ def _infer_depends_on(raw_json: dict) -> dict:
     ids = {c["id"] for c in comps if isinstance(c, dict) and "id" in c}
     id_list = [c["id"] for c in comps if isinstance(c, dict) and "id" in c]
 
-    # Check if graph is already well-connected (>50% of non-root nodes have deps)
+    # Check if graph is already well-connected
     non_root = [c for c in comps if isinstance(c, dict) and c.get("depends_on")]
     if len(non_root) > len(comps) * 0.5:
-        return raw_json  # looks fine, skip inference
+        return raw_json
 
     tcs = raw_json.get("tensor_contracts") or []
-    # Build output_shapes map: component_id -> set of output tensor name sets
     tc_out: dict[str, set] = {}
     tc_in: dict[str, set] = {}
     for tc in tcs:
-        if not isinstance(tc, dict):
-            continue
+        if not isinstance(tc, dict): continue
         cid = tc.get("component_id", "")
         if cid:
             tc_out[cid] = set(tc.get("output_shapes", {}).keys())
             tc_in[cid] = set(tc.get("input_shapes", {}).keys())
 
-    # Pass 1: tensor shape key matching
-    inferred: dict[str, list[str]] = {c["id"]: [] for c in comps if isinstance(c, dict) and "id" in c}
+    inferred: dict[str, list[str]] = {cid: [] for cid in id_list}
+    
+    # Pass 1: Tensor key matching (strongest signal)
     for b_id in id_list:
         b_inputs = tc_in.get(b_id, set())
-        if not b_inputs:
-            continue
+        if not b_inputs or b_inputs == {"x"}: continue # skip generic "x" matching
         for a_id in id_list:
-            if a_id == b_id:
-                continue
+            if a_id == b_id: continue
             a_outputs = tc_out.get(a_id, set())
-            if a_outputs and b_inputs & a_outputs:  # overlapping tensor names
+            if a_outputs and b_inputs & a_outputs:
                 inferred[b_id].append(a_id)
 
-    # Pass 2: kind-order fallback — chain components by tier
-    def _tier(comp):
+    # Pass 2: Tier-based fallback
+    def _get_tier(comp):
         kind = comp.get("kind", "other") if isinstance(comp, dict) else "other"
-        try:
-            return _KIND_ORDER.index(kind)
-        except ValueError:
-            return len(_KIND_ORDER)
+        for i, tier in enumerate(_TIER_ORDER):
+            if kind in tier: return i
+        return len(_TIER_ORDER)
 
-    sorted_comps = sorted([c for c in comps if isinstance(c, dict)], key=_tier)
-    if not any(inferred.values()):  # only use kind-order if tensor matching found nothing
-        for i, comp in enumerate(sorted_comps):
-            cid = comp.get("id", "")
-            if not cid or inferred.get(cid):
-                continue
-            # connect to the previous tier component
-            if i > 0:
-                prev_id = sorted_comps[i - 1].get("id", "")
-                if prev_id and prev_id in ids:
-                    inferred[cid] = [prev_id]
-
-    # Merge inferred deps into raw_json (only for components that still have no deps)
+    # Group components by tier
+    tiers: dict[int, list[str]] = {}
     for comp in comps:
-        if not isinstance(comp, dict):
-            continue
+        if not isinstance(comp, dict): continue
+        t = _get_tier(comp)
+        tiers.setdefault(t, []).append(comp["id"])
+
+    sorted_tier_indices = sorted(tiers.keys())
+    
+    for i, tier_idx in enumerate(sorted_tier_indices):
+        current_ids = tiers[tier_idx]
+        if i == 0: continue # Root tier
+        
+        prev_ids = []
+        for j in range(i - 1, -1, -1):
+            prev_ids = tiers[sorted_tier_indices[j]]
+            if prev_ids: break
+            
+        for cid in current_ids:
+            if not inferred.get(cid) and not any(c.get("id") == cid and c.get("depends_on") for c in comps if isinstance(c, dict)):
+                # Connect to ALL components in the immediate previous tier (parallel source)
+                inferred[cid].extend(prev_ids)
+
+    # Merge
+    for comp in comps:
+        if not isinstance(comp, dict): continue
         cid = comp.get("id", "")
         if not comp.get("depends_on") and inferred.get(cid):
-            comp["depends_on"] = inferred[cid]
+            comp["depends_on"] = list(set(inferred[cid]))
 
     return raw_json
+
 
 _VALID_KINDS = {
     "input_embedding", "positional_encoding", "linear_projection", "attention",
@@ -222,6 +217,11 @@ def _fix_latex_escapes(s: str) -> str:
 
 def _parse_response(text: str) -> dict:
     cleaned = text.strip()
+    
+    # Strip thinking block if present
+    if "<thinking>" in cleaned:
+        cleaned = re.sub(r"<thinking>.*?</thinking>", "", cleaned, flags=re.DOTALL).strip()
+    
     if cleaned.startswith("```"):
         lines = cleaned.split("\n")
         cleaned = "\n".join(lines[1:])

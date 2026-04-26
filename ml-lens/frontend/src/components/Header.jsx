@@ -13,13 +13,13 @@ export default function Header({ viewMode, setViewMode, onRunTraversal, traversa
             className={`header-toggle-item ${viewMode === 'model' ? 'active' : ''}`}
             onClick={() => setViewMode('model')}
           >
-            <span className="toggle-icon">㗊</span> Model
+            <span className="toggle-icon">㗊</span> <span className="toggle-label">Model</span>
           </button>
           <button 
             className={`header-toggle-item ${viewMode === 'code' ? 'active' : ''}`}
             onClick={() => setViewMode('code')}
           >
-            <span className="toggle-icon">{"</>"}</span> Code
+            <span className="toggle-icon">{"</>"}</span> <span className="toggle-label">Code</span>
           </button>
         </div>
 
@@ -34,7 +34,7 @@ export default function Header({ viewMode, setViewMode, onRunTraversal, traversa
               : 'Run Traversal'
             }
           </button>
-          <button className="btn-primary">Export</button>
+          <button className="btn-primary btn-export-desktop">Export</button>
         </div>
       </div>
     </header>

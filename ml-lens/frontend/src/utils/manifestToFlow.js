@@ -135,6 +135,7 @@ export function manifestToFlow(manifest) {
       manifest,
     },
     style: { ...BASE_NODE_STYLE, ...(KIND_STYLE[comp.kind] ?? KIND_STYLE.other) },
+    className: comp.is_experimental ? 'experimental-node' : '',
     // Use input/output types for handles
     type: comp.depends_on?.length === 0 ? 'input' : undefined,
   }))

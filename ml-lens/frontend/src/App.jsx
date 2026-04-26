@@ -76,6 +76,32 @@ export default function App() {
     }
   }, [manifest])
 
+  const handleSandboxAction = useCallback((action) => {
+    if (action.type === 'duplicate_component') {
+      const { sourceId, newId, name, depends_on } = action.payload
+      setManifest(prev => {
+        if (!prev) return prev
+        const sourceComp = prev.components.find(c => c.id === sourceId)
+        if (!sourceComp) return prev
+        
+        const newComp = {
+          ...sourceComp,
+          id: newId,
+          name: name || `${sourceComp.name} (Exp)`,
+          depends_on: depends_on || sourceComp.depends_on || [], // Auto-wire!
+          is_experimental: true,
+        }
+        
+        return {
+          ...prev,
+          components: [...prev.components, newComp]
+        }
+      })
+    }
+  }, [])
+
+  const [chatExpanded, setChatExpanded] = useState(true)
+
   if (currentPage === 'landing') {
     return <LandingPage onEnter={(data) => {
       // data may be a locked manifest (with .manifest) or a raw manifest or null
@@ -86,7 +112,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${chatExpanded ? 'chat-expanded' : 'chat-collapsed'}`}>
       <Header
         viewMode={viewMode}
         setViewMode={setViewMode}
@@ -94,7 +120,12 @@ export default function App() {
         onRunTraversal={handleRunTraversal}
       />
       <div className="main-split">
-        <ChatPanel />
+        <ChatPanel 
+          onAction={handleSandboxAction} 
+          manifest={manifest} 
+          expanded={chatExpanded}
+          setExpanded={setChatExpanded}
+        />
         <Sandbox
           manifest={manifest}
           viewMode={viewMode}
@@ -104,6 +135,7 @@ export default function App() {
           traversalResult={traversalResult}
           traversalError={traversalError}
           onCloseTraversal={() => { setTraversalResult(null); setTraversalError(null) }}
+          chatExpanded={chatExpanded}
         />
       </div>
     </div>
