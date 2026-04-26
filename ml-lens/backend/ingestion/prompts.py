@@ -1,70 +1,102 @@
 from __future__ import annotations
 
-import json
+# Valid enum values — kept here for reference, not injected as schema
+VALID_COMPONENT_KINDS = [
+    "input_embedding", "positional_encoding", "linear_projection", "attention",
+    "multi_head_attention", "feedforward", "layernorm", "rmsnorm", "residual",
+    "softmax", "masking", "output_head", "other"
+]
 
-from schema.models import ComponentManifest
+VALID_INVARIANT_KINDS = [
+    "weight_tying", "causal_mask", "residual_connection",
+    "init_scheme", "normalization_placement", "scaling", "other"
+]
 
-import copy
+EXTRACTION_SYSTEM_PROMPT = """\
+You are an expert ML research engineer. Your task is to read an ML paper and produce a structured JSON manifest of its architecture.
 
-_raw_schema = ComponentManifest.model_json_schema()
-_SCHEMA_FOR_LLM = copy.deepcopy(_raw_schema)
-# Remove the `paper` field from the schema we show the LLM — it is injected server-side
-_SCHEMA_FOR_LLM.get("properties", {}).pop("paper", None)
-_SCHEMA_FOR_LLM.get("required", [None])  # keep as-is, just don't add
-if "paper" in _SCHEMA_FOR_LLM.get("required", []):
-    _SCHEMA_FOR_LLM["required"] = [r for r in _SCHEMA_FOR_LLM["required"] if r != "paper"]
-_SCHEMA_JSON = json.dumps(_SCHEMA_FOR_LLM, indent=2)
+## Output Structure
 
-EXTRACTION_SYSTEM_PROMPT = f"""You are an expert ML research engineer extracting a locked architectural contract from a paper. This contract grounds downstream code-generation agents, so precision and structural depth matter.
+Produce a single JSON object with these top-level keys:
+- "components": list of component objects
+- "tensor_contracts": list of tensor contract objects
+- "invariants": list of invariant objects
+- "symbol_table": dict mapping symbol names to meanings
+- "notes": string or null
 
-## Your job
+Do NOT include a "paper" key — it will be added automatically.
 
-1. **THINK**: First, trace the mathematical data flow of the model in your mind. Identify parallel branches (like Q, K, V projections), residual connections, and normalization placement.
-2. **STRUCTURE**: Produce a JSON object that strictly conforms to the JSON Schema below.
+## Component Object Format
 
-## JSON Schema
+Each component must have:
+{
+  "id": "snake_case_unique_id",
+  "name": "Human Readable Name",
+  "kind": "<one of the valid kinds listed below>",
+  "description": "What this component does",
+  "operations": ["op1", "op2"],
+  "depends_on": ["id_of_upstream_component"],
+  "hyperparameters": {"param_name": "meaning or value"},
+  "equations": ["LaTeX equation string"]
+}
 
-```json
-{_SCHEMA_JSON}
-```
+Valid "kind" values (use EXACTLY one):
+input_embedding | positional_encoding | linear_projection | attention |
+multi_head_attention | feedforward | layernorm | rmsnorm | residual |
+softmax | masking | output_head | other
+
+## Tensor Contract Object Format
+
+{
+  "component_id": "matching_component_id",
+  "input_shapes": {"tensor_name": ["B", "T", "d_model"]},
+  "output_shapes": {"tensor_name": ["B", "T", "d_model"]},
+  "dtype": "float32"
+}
+
+## Invariant Object Format
+
+{
+  "id": "snake_case_id",
+  "description": "Description of the architectural invariant",
+  "kind": "<one of the valid kinds listed below>",
+  "affected_components": ["component_id_1", "component_id_2"]
+}
+
+Valid "kind" values for invariants:
+weight_tying | causal_mask | residual_connection | init_scheme | normalization_placement | scaling | other
 
 ## Granularity Rules
 
-- Break down complex layers into their constituent mathematical blocks (e.g., Multi-Head Attention, FFN).
-- **DO NOT unroll repetitive stacks**: If a paper says "N=6 layers", do NOT create 6 identical components. Instead, create ONE representative component (e.g., "Encoder Block") and specify `num_layers: 6` in its hyperparameters.
-- Capture sub-components like "Scaled Dot-Product Attention" if they have specific equations.
+- Break down the architecture into meaningful sub-components (e.g. separate Multi-Head Attention, Add & Norm, FFN).
+- **DO NOT unroll repetitive stacks**: If the paper says "N=6 encoder layers", create ONE representative "Encoder Block" component with `"num_layers": "6"` in its hyperparameters — not 6 separate components.
 
-## depends_on — DATA FLOW GRAPH (CRITICAL)
+## depends_on — Data Flow Graph
 
-`depends_on` encodes the **data-flow graph**.
-- Parallel sources: Components that receive the same input (e.g. Q, K, V projections) should all have the same `depends_on` ids.
-- Residual connections: A component like "Add & Norm" should have TWO entries in `depends_on`: the output of the previous layer and the original input that is being added back.
-- Every non-root component MUST have at least one entry in `depends_on`.
+`depends_on` is a list of component IDs that feed their output into this component.
+- Root components (no upstream) have `"depends_on": []`
+- Every other component MUST list at least one upstream id.
+- For residual connections, list BOTH the sub-layer output AND the skip-connection source.
+- For parallel paths (Q/K/V), all three share the same `depends_on`.
 
-Example for one Transformer Encoder Block:
-```json
+Example (Transformer encoder block, ids are illustrative):
 [
-  {{"id": "input_tokens",         "depends_on": []}},
-  {{"id": "input_emb",            "depends_on": ["input_tokens"]}},
-  {{"id": "pos_enc",              "depends_on": ["input_tokens"]}},
-  {{"id": "emb_sum",              "depends_on": ["input_emb", "pos_enc"]}},
-  {{"id": "mha",                  "depends_on": ["emb_sum"]}},
-  {{"id": "residual_1",           "depends_on": ["emb_sum", "mha"]}},
-  {{"id": "layer_norm_1",         "depends_on": ["residual_1"]}},
-  {{"id": "ffn",                  "depends_on": ["layer_norm_1"]}},
-  {{"id": "residual_2",           "depends_on": ["layer_norm_1", "ffn"]}},
-  {{"id": "layer_norm_2",         "depends_on": ["residual_2"]}}
+  {"id": "input_emb",     "depends_on": []},
+  {"id": "pos_enc",       "depends_on": []},
+  {"id": "emb_add",       "depends_on": ["input_emb", "pos_enc"]},
+  {"id": "mha",           "depends_on": ["emb_add"]},
+  {"id": "add_norm_1",    "depends_on": ["emb_add", "mha"]},
+  {"id": "ffn",           "depends_on": ["add_norm_1"]},
+  {"id": "add_norm_2",    "depends_on": ["add_norm_1", "ffn"]}
 ]
-```
 
-## LaTeX and JSON
+## LaTeX Rules
 
-- Use double backslashes for ALL LaTeX commands (e.g. `\\\\text{{Softmax}}`).
-- Ensure equations are valid LaTeX.
+- Use double backslashes for ALL LaTeX commands: `\\\\frac`, `\\\\sqrt`, `\\\\text{Softmax}`.
 
 ## Output Format
 
-You MUST start your response with a `<thinking>` block where you briefly (max 5-10 sentences) outline the model's structure. Then, provide the JSON object inside a ```json``` code block.
+First write a <thinking> block where you briefly trace the data flow and identify key components. Then output the JSON inside a ```json code block.
 """
 
 USER_MESSAGE_TEMPLATE = """Paper metadata:
@@ -83,4 +115,4 @@ Paper text (PyMuPDF extraction):
 {text}
 ---
 
-Produce the ComponentManifest JSON now."""
+Now produce the ComponentManifest JSON for this paper."""

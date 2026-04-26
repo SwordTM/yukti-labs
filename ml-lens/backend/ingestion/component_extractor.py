@@ -216,28 +216,33 @@ def _fix_latex_escapes(s: str) -> str:
 
 
 def _parse_response(text: str) -> dict:
+    """Extract and parse JSON from the LLM response, ignoring thinking blocks and markdown fences."""
     cleaned = text.strip()
     
-    # Strip thinking block if present
-    if "<thinking>" in cleaned:
-        cleaned = re.sub(r"<thinking>.*?</thinking>", "", cleaned, flags=re.DOTALL).strip()
-    
-    if cleaned.startswith("```"):
-        lines = cleaned.split("\n")
-        cleaned = "\n".join(lines[1:])
-        if cleaned.endswith("```"):
-            cleaned = cleaned.rsplit("```", 1)[0]
-        cleaned = cleaned.strip()
+    # 1. Try to find content within ```json ... ``` blocks
+    json_block_match = re.search(r"```json\s*(\{.*?\})\s*```", cleaned, re.DOTALL)
+    if json_block_match:
+        target = json_block_match.group(1)
+    else:
+        # 2. Fallback: find the first '{' and last '}'
+        first_brace = cleaned.find('{')
+        last_brace = cleaned.rfind('}')
+        if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+            target = cleaned[first_brace : last_brace + 1]
+        else:
+            target = cleaned
+
     try:
-        return json.loads(cleaned)
+        return json.loads(target)
     except json.JSONDecodeError:
         pass
+        
     # retry after fixing bare LaTeX backslashes
     try:
-        return json.loads(_fix_latex_escapes(cleaned))
+        return json.loads(_fix_latex_escapes(target))
     except json.JSONDecodeError as exc:
         raise ComponentExtractorError(
-            f"LLM did not return valid JSON: {exc}\nraw: {text[:500]}"
+            f"LLM did not return valid JSON: {exc}\nTarget: {target[:500]}"
         ) from exc
 
 
