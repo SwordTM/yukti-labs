@@ -17,6 +17,7 @@ export default function LandingPage({ onEnter }) {
   const [pipelineDone, setPipelineDone] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
+  const [forceRefresh, setForceRefresh] = useState(false)
   const inputRef = useRef(null)
 
   const handleSubmit = async (e) => {
@@ -33,7 +34,10 @@ export default function LandingPage({ onEnter }) {
       const res = await fetch(`${API_BASE}/api/ingest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url_or_id: parseArxivId(raw) }),
+        body: JSON.stringify({ 
+          url_or_id: parseArxivId(raw),
+          force_refresh: forceRefresh 
+        }),
       })
 
       if (!res.ok) {
@@ -65,6 +69,7 @@ export default function LandingPage({ onEnter }) {
     setError(null)
     setInput('')
     setPipelineDone(false)
+    setForceRefresh(false)
     setTimeout(() => inputRef.current?.focus(), 50)
   }
 
@@ -107,6 +112,18 @@ export default function LandingPage({ onEnter }) {
                 Research paper
               </button>
             </form>
+
+            <div className="landing-force-refresh" style={{ marginTop: '15px', display: 'flex', justifyContent: 'center' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.85rem', cursor: 'pointer' }}>
+                <input 
+                  type="checkbox" 
+                  checked={forceRefresh} 
+                  onChange={(e) => setForceRefresh(e.target.checked)} 
+                />
+                <span>Ignore cache (Force fresh analysis)</span>
+              </label>
+            </div>
+
             <button className="landing-sandbox-skip" onClick={() => onEnter(null)}>
               or open sandbox directly →
             </button>

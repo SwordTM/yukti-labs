@@ -22,6 +22,7 @@ class ParsedPaper:
     equations: list[str]
     figure_captions: list[str]
     figure_images: list[bytes] = field(default_factory=list)  # PNG bytes per figure
+    high_context_text: str = ""
 
 
 def _fetch_latex_source(arxiv_id: str) -> str | None:
@@ -33,7 +34,6 @@ def _fetch_latex_source(arxiv_id: str) -> str | None:
     except Exception:
         return None
 
-    content_type = resp.headers.get("content-type", "")
     raw = resp.content
 
     try:
@@ -83,9 +83,18 @@ def parse_pdf(pdf_path: Path, arxiv_id: str | None = None) -> ParsedPaper:
     figure_captions: list[str] = []
     figure_images: list[bytes] = []
 
+    # Keywords to identify high-context sections
+    context_keywords = ["architecture", "method", "model", "approach", "implementation"]
+    high_context_chunks = []
+
     for page in doc:
         text = page.get_text("text")
         pages_text.append(text)
+
+        # Basic section detection: check if page contains architecture keywords
+        lower_text = text.lower()
+        if any(kw in lower_text for kw in context_keywords):
+            high_context_chunks.append(text)
 
         for m in _CAPTION_RE.finditer(text):
             figure_captions.append(m.group(0).strip())
@@ -104,6 +113,13 @@ def parse_pdf(pdf_path: Path, arxiv_id: str | None = None) -> ParsedPaper:
 
     doc.close()
     full_text = "\n".join(pages_text)
+    
+    # Prioritize the first few "high context" pages if found, otherwise use start of paper
+    if high_context_chunks:
+        # Join chunks but keep it within a reasonable size
+        high_context_text = "\n\n".join(high_context_chunks[:5])
+    else:
+        high_context_text = full_text[:15000]
 
     # Try to get clean equations from LaTeX source
     equations: list[str] = []
@@ -121,4 +137,5 @@ def parse_pdf(pdf_path: Path, arxiv_id: str | None = None) -> ParsedPaper:
         equations=equations,
         figure_captions=figure_captions,
         figure_images=figure_images,
+        high_context_text=high_context_text,
     )

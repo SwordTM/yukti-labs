@@ -3,21 +3,8 @@ from __future__ import annotations
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
-ComponentKind = Literal[
-    "input_embedding",
-    "positional_encoding",
-    "linear_projection",
-    "attention",
-    "multi_head_attention",
-    "feedforward",
-    "layernorm",
-    "rmsnorm",
-    "residual",
-    "softmax",
-    "masking",
-    "output_head",
-    "other",
-]
+# Well-known kinds used for fallback styling, but any string is allowed.
+ComponentKind = str
 
 InvariantKind = Literal[
     "weight_tying",
@@ -28,6 +15,13 @@ InvariantKind = Literal[
     "scaling",
     "other",
 ]
+
+
+class LegendCategory(BaseModel):
+    kind: str = Field(..., description="The unique kind identifier matching component.kind")
+    label: str = Field(..., description="Human-readable label for the legend, e.g. 'Core Logic'")
+    description: Optional[str] = None
+    color_hint: Optional[str] = Field(None, description="Optional color hint (e.g. 'blue', '#FF0000')")
 
 
 class PaperQuote(BaseModel):
@@ -64,6 +58,7 @@ class Component(BaseModel):
     depends_on: list[str] = Field(default_factory=list, description="IDs of components this depends on")
     hyperparameters: dict[str, str] = Field(default_factory=dict, description="Symbolic hyperparameter names and meanings")
     equations: list[str] = Field(default_factory=list, description="LaTeX equations from the paper")
+    repetition_count: Optional[int] = Field(None, description="Number of times this component/block is repeated (e.g. Nx in Transformer)")
     quote: Optional[PaperQuote] = None
 
 
@@ -86,6 +81,10 @@ class ComponentManifest(BaseModel):
         description="Map of symbol -> meaning, e.g. {'d_model': 'model hidden dimension'}"
     )
     notes: Optional[str] = None
+    taxonomy: list[LegendCategory] = Field(
+        default_factory=list,
+        description="Dynamic legend/categories for this specific paper"
+    )
     locked: bool = Field(
         default=False, description="Whether this manifest is locked for diff generation"
     )

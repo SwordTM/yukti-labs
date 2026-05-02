@@ -174,6 +174,13 @@ function ParamField({ meta, value, defaultValue, onChange }) {
 }
 
 export default function NodeInfoPopup({ node, params, onParamChange, onParamReset, onClose, isManifestMode }) {
+  const [showAdvanced, setShowAdvanced] = useState(false)
+
+  // Close advanced view when switching nodes
+  useEffect(() => {
+    setShowAdvanced(false)
+  }, [node?.id])
+
   if (!node) return null
 
   // ── Manifest mode: render real component data ────────────────────────────
@@ -186,6 +193,12 @@ export default function NodeInfoPopup({ node, params, onParamChange, onParamRese
     const invs = (manifest?.invariants ?? []).filter((i) =>
       (i.affected_components ?? []).includes(comp.id)
     )
+
+    const hasAdvanced = (comp.equations?.length > 0) || 
+                        (Object.keys(comp.hyperparameters ?? {}).length > 0) || 
+                        tc || 
+                        comp.quote?.text || 
+                        (invs.length > 0);
 
     return (
       <div className="node-popup">
@@ -205,58 +218,76 @@ export default function NodeInfoPopup({ node, params, onParamChange, onParamRese
         <div className="node-popup-body">
           <p className="node-popup-summary">{comp.description}</p>
 
-          {comp.equations?.length > 0 && (
-            <div className="node-popup-why">
-              <span className="node-popup-why-label">Key equations</span>
-              <div className="latex-equation-list">
-                {comp.equations.map((eq, i) => (
-                  <LatexEquation key={i} src={eq} block />
-                ))}
-              </div>
-            </div>
-          )}
+          {hasAdvanced && (
+            <div className="node-popup-advanced">
+              <button 
+                className="node-popup-advanced-toggle" 
+                onClick={() => setShowAdvanced(!showAdvanced)}
+              >
+                <span className="advanced-toggle-text">
+                  {showAdvanced ? 'Hide technical details' : 'View technical details'}
+                </span>
+                <span className={`advanced-chevron ${showAdvanced ? 'open' : ''}`}>▼</span>
+              </button>
+              
+              {showAdvanced && (
+                <div className="node-popup-advanced-content">
+                  {comp.equations?.length > 0 && (
+                    <div className="node-popup-why">
+                      <span className="node-popup-why-label">Key equations</span>
+                      <div className="latex-equation-list">
+                        {comp.equations.map((eq, i) => (
+                          <LatexEquation key={i} src={eq} block />
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-          {Object.keys(comp.hyperparameters ?? {}).length > 0 && (
-            <div className="node-popup-params">
-              <div className="params-header">
-                <span className="params-title">Hyperparameters</span>
-              </div>
-              <div className="params-grid">
-                {Object.entries(comp.hyperparameters).map(([k, v]) => (
-                  <React.Fragment key={k}>
-                    <label className="param-label" style={{ fontFamily: 'monospace' }}>{k}</label>
-                    <span style={{ fontSize: 12, color: '#4B5E78', alignSelf: 'center' }}>{v}</span>
-                  </React.Fragment>
-                ))}
-              </div>
-            </div>
-          )}
+                  {Object.keys(comp.hyperparameters ?? {}).length > 0 && (
+                    <div className="node-popup-params">
+                      <div className="params-header">
+                        <span className="params-title">Hyperparameters</span>
+                      </div>
+                      <div className="params-grid">
+                        {Object.entries(comp.hyperparameters).map(([k, v]) => (
+                          <React.Fragment key={k}>
+                            <label className="param-label" style={{ fontFamily: 'monospace' }}>{k}</label>
+                            <span style={{ fontSize: 12, color: '#4B5E78', alignSelf: 'center' }}>{v}</span>
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-          {tc && (
-            <div className="node-popup-why" style={{ marginTop: 12 }}>
-              <span className="node-popup-why-label">Tensor shapes</span>
-              <div style={{ fontSize: 12, marginTop: 4 }}>
-                <div><strong>In:</strong> {Object.entries(tc.input_shapes).map(([k, v]) => `${k}: [${v.join(', ')}]`).join(' · ')}</div>
-                <div><strong>Out:</strong> {Object.entries(tc.output_shapes).map(([k, v]) => `${k}: [${v.join(', ')}]`).join(' · ')}</div>
-              </div>
-            </div>
-          )}
+                  {tc && (
+                    <div className="node-popup-why" style={{ marginTop: 12 }}>
+                      <span className="node-popup-why-label">Tensor shapes</span>
+                      <div style={{ fontSize: 12, marginTop: 4 }}>
+                        <div><strong>In:</strong> {Object.entries(tc.input_shapes).map(([k, v]) => `${k}: [${v.join(', ')}]`).join(' · ')}</div>
+                        <div><strong>Out:</strong> {Object.entries(tc.output_shapes).map(([k, v]) => `${k}: [${v.join(', ')}]`).join(' · ')}</div>
+                      </div>
+                    </div>
+                  )}
 
-          {comp.quote?.text && (
-            <div className="node-popup-why" style={{ marginTop: 12 }}>
-              <span className="node-popup-why-label">Paper quote</span>
-              <p style={{ fontStyle: 'italic', fontSize: 12, color: '#4B5E78' }}>"{comp.quote.text}"</p>
-            </div>
-          )}
+                  {comp.quote?.text && (
+                    <div className="node-popup-why" style={{ marginTop: 12 }}>
+                      <span className="node-popup-why-label">Paper quote</span>
+                      <p style={{ fontStyle: 'italic', fontSize: 12, color: '#4B5E78' }}>"{comp.quote.text}"</p>
+                    </div>
+                  )}
 
-          {invs.length > 0 && (
-            <div className="node-popup-why" style={{ marginTop: 12 }}>
-              <span className="node-popup-why-label">Invariants</span>
-              <ul style={{ margin: 0, paddingLeft: 16 }}>
-                {invs.map((inv) => (
-                  <li key={inv.id} style={{ fontSize: 12, marginBottom: 4 }}>{inv.description}</li>
-                ))}
-              </ul>
+                  {invs.length > 0 && (
+                    <div className="node-popup-why" style={{ marginTop: 12 }}>
+                      <span className="node-popup-why-label">Invariants</span>
+                      <ul style={{ margin: 0, paddingLeft: 16 }}>
+                        {invs.map((inv) => (
+                          <li key={inv.id} style={{ fontSize: 12, marginBottom: 4 }}>{inv.description}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

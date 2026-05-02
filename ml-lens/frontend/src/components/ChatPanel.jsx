@@ -79,8 +79,6 @@ export default function ChatPanel({ onAction, manifest, expanded, setExpanded })
 
   return (
     <aside className={`chat-panel ${expanded ? 'expanded' : 'collapsed'}`}>
-      <LoadingBar loading={loading} label="Thinking…" />
-
       <div className="chat-panel-header">
         <div className="chat-panel-title-wrap">
           <span className="chat-panel-title">Model Chat</span>

@@ -134,6 +134,8 @@ export default function App() {
           onParamReset={handleParamReset}
           traversalResult={traversalResult}
           traversalError={traversalError}
+          traversalLoading={traversalLoading}
+          onRunTraversal={handleRunTraversal}
           onCloseTraversal={() => { setTraversalResult(null); setTraversalError(null) }}
           chatExpanded={chatExpanded}
         />

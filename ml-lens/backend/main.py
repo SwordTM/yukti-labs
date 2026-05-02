@@ -1,6 +1,7 @@
 from __future__ import annotations
 import logging
 import os
+import re
 import ssl
 import time
 import json
@@ -111,9 +112,17 @@ Current model architecture: {json.dumps(manifest.get('components') if manifest e
 If (and ONLY if) an operational change is requested, include an "action" field in your response.
 Action Schema: {{ "type": "duplicate_component", "payload": {{ "sourceId": string, "newId": string, "name": string, "depends_on": string[] }} }}
 
-Return your response as a JSON object with:
-- "content": Your markdown response.
-- "action": null OR the action object.
+## CRITICAL: You MUST respond with ONLY a valid JSON object. No preamble, no markdown fences, no explanation outside the JSON.
+Return exactly this structure:
+{{
+  "content": "<your markdown response here>",
+  "action": null
+}}
+OR if proposing an action:
+{{
+  "content": "<your markdown response here>",
+  "action": {{ "type": "duplicate_component", "payload": {{ ... }} }}
+}}
 """
 
     try:
@@ -123,9 +132,30 @@ Return your response as a JSON object with:
                 {"role": "system", "content": system_prompt},
                 *messages
             ],
-            response_format={ "type": "json_object" }
         )
-        res_data = json.loads(completion.choices[0].message.content)
+        raw_content = (completion.choices[0].message.content or "").strip()
+        if not raw_content:
+            logging.warning("Chat: LLM returned an empty response")
+            return {"content": "The model returned an empty response. Please try again.", "action": None}
+        
+        # Strip markdown fences if the model wrapped the JSON anyway
+        if raw_content.startswith("```"):
+            raw_content = re.sub(r"^```(?:json)?\s*", "", raw_content)
+            raw_content = re.sub(r"\s*```$", "", raw_content).strip()
+
+        # Find the JSON object bounds
+        first_brace = raw_content.find('{')
+        last_brace = raw_content.rfind('}')
+        if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+            raw_content = raw_content[first_brace:last_brace + 1]
+
+        try:
+            res_data = json.loads(raw_content)
+        except json.JSONDecodeError:
+            # Model returned plain text — wrap it as a content message
+            logging.warning(f"Chat: LLM returned non-JSON content: {raw_content[:200]}")
+            return {"content": raw_content, "action": None}
+        
         return res_data
     except Exception as e:
         logging.error(f"Chat error: {e}")

@@ -21,19 +21,17 @@ export default function Header({ viewMode, setViewMode, onRunTraversal, traversa
           >
             <span className="toggle-icon">{"</>"}</span> <span className="toggle-label">Code</span>
           </button>
+          <button 
+            className={`header-toggle-item ${viewMode === 'trace' ? 'active' : ''}`}
+            onClick={() => { setViewMode('trace'); onRunTraversal?.() }}
+          >
+            <span className="toggle-icon">⚡</span> <span className="toggle-label">
+              {traversalLoading ? <><AsteriskSpinner size={11} color="currentColor" /> Running</> : 'Trace'}
+            </span>
+          </button>
         </div>
 
         <div className="header-actions">
-          <button
-            className="btn-ghost header-traversal-btn"
-            onClick={onRunTraversal}
-            disabled={traversalLoading}
-          >
-            {traversalLoading
-              ? <><AsteriskSpinner size={13} color="#4B5E78" />Running…</>
-              : 'Run Traversal'
-            }
-          </button>
           <button className="btn-primary btn-export-desktop">Export</button>
         </div>
       </div>
